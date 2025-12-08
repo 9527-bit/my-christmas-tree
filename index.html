@@ -107,7 +107,7 @@
             }
         };
         
-        // --- 摄像头控制逻辑 (修复Bug版) ---
+        // --- 摄像头控制逻辑 (完美修复版) ---
         let isCameraRunning = false;
 
         async function toggleCamera() {
@@ -305,70 +305,104 @@
         }
 
         function setupTouchAndClick() {
-            const container = document.getElementById('canvas-container');
-            
-            container.addEventListener('pointerdown', (e) => {
-                STATE.touch.active = true;
-                STATE.touch.startX = e.clientX;
-                STATE.touch.startY = e.clientY;
-                STATE.touch.lastX = e.clientX;
-                STATE.touch.lastY = e.clientY;
-            });
-            window.addEventListener('pointermove', (e) => {
-                if (!STATE.touch.active) return;
-                const deltaX = e.clientX - STATE.touch.lastX;
-                const deltaY = e.clientY - STATE.touch.lastY;
-                STATE.rotation.y += deltaX * 0.005;
-                STATE.rotation.x += deltaY * 0.002;
-                STATE.rotation.x = Math.max(-0.5, Math.min(0.5, STATE.rotation.x));
-                STATE.touch.lastX = e.clientX;
-                STATE.touch.lastY = e.clientY;
-            });
-            window.addEventListener('pointerup', (e) => {
-                STATE.touch.active = false;
-            });
+                    const container = document.getElementById('canvas-container');
+                    
+                    // --- 1. 旋转控制 (保持不变) ---
+                    container.addEventListener('pointerdown', (e) => {
+                        STATE.touch.active = true;
+                        STATE.touch.startX = e.clientX;
+                        STATE.touch.startY = e.clientY;
+                        STATE.touch.lastX = e.clientX;
+                        STATE.touch.lastY = e.clientY;
+                    });
+                    window.addEventListener('pointermove', (e) => {
+                        if (!STATE.touch.active) return;
+                        const deltaX = e.clientX - STATE.touch.lastX;
+                        const deltaY = e.clientY - STATE.touch.lastY;
+                        STATE.rotation.y += deltaX * 0.005;
+                        STATE.rotation.x += deltaY * 0.002;
+                        STATE.rotation.x = Math.max(-0.5, Math.min(0.5, STATE.rotation.x));
+                        STATE.touch.lastX = e.clientX;
+                        STATE.touch.lastY = e.clientY;
+                    });
+                    window.addEventListener('pointerup', (e) => {
+                        STATE.touch.active = false;
+                    });
 
-            container.addEventListener('click', (e) => {
-                const moveDist = Math.hypot(e.clientX - STATE.touch.startX, e.clientY - STATE.touch.startY);
-                if (moveDist > 10) return; 
+                    // --- 2. 点击选中照片 (保持不变) ---
+                    container.addEventListener('click', (e) => {
+                        const moveDist = Math.hypot(e.clientX - STATE.touch.startX, e.clientY - STATE.touch.startY);
+                        if (moveDist > 10) return; // 如果是拖动旋转，就不触发点击
 
-                mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-                mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-                
-                const intersects = raycaster.intersectObjects(mainGroup.children, true);
-                let clickedPhoto = null;
-                for (let hit of intersects) {
-                    let obj = hit.object;
-                    while(obj.parent && obj.parent !== mainGroup && obj.parent !== photoMeshGroup) {
-                        obj = obj.parent;
-                    }
-                    const particle = particleSystem.find(p => p.mesh === obj && p.type === 'PHOTO');
-                    if (particle) { clickedPhoto = particle; break; }
+                        mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+                        mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                        raycaster.setFromCamera(mouse, camera);
+                        
+                        const intersects = raycaster.intersectObjects(mainGroup.children, true);
+                        let clickedPhoto = null;
+                        for (let hit of intersects) {
+                            let obj = hit.object;
+                            while(obj.parent && obj.parent !== mainGroup && obj.parent !== photoMeshGroup) {
+                                obj = obj.parent;
+                            }
+                            const particle = particleSystem.find(p => p.mesh === obj && p.type === 'PHOTO');
+                            if (particle) { clickedPhoto = particle; break; }
+                        }
+
+                        if (clickedPhoto) {
+                            STATE.mode = 'FOCUS';
+                            STATE.focusTarget = clickedPhoto.mesh;
+                        } else {
+                            if (STATE.mode === 'FOCUS') {
+                                STATE.mode = 'TREE';
+                                STATE.focusTarget = null;
+                            }
+                        }
+                    });
+
+                    // --- 3. 双击切换模式 (保持不变) ---
+                    let lastTap = 0;
+                    container.addEventListener('touchend', (e) => {
+                        const currentTime = new Date().getTime();
+                        const tapLength = currentTime - lastTap;
+                        if (tapLength < 300 && tapLength > 0) {
+                            STATE.mode = (STATE.mode === 'SCATTER') ? 'TREE' : 'SCATTER';
+                            e.preventDefault();
+                        }
+                        lastTap = currentTime;
+                    });
+
+                    // --- 4. 【新增】手机端长按 1 秒隐藏/显示 UI ---
+                    let longPressTimer;
+                    
+                    // 手指按下时开始计时
+                    container.addEventListener('touchstart', (e) => {
+                        // 如果是多指操作（比如缩放），不触发长按
+                        if (e.touches.length > 1) return;
+
+                        longPressTimer = setTimeout(() => {
+                            // 1秒后执行：切换 UI 显示状态
+                            const controls = document.querySelector('.controls-wrapper');
+                            const webcam = document.getElementById('webcam-wrapper');
+                            const modeBar = document.getElementById('mode-bar'); // 把底部的模式栏也一起隐藏
+                            
+                            if (controls) controls.classList.toggle('ui-hidden');
+                            if (webcam) webcam.classList.toggle('ui-hidden');
+                            if (modeBar) modeBar.classList.toggle('ui-hidden');
+                            
+                        }, 1000); // 1000毫秒 = 1秒
+                    }, { passive: true });
+
+                    // 如果手指移动了（比如在旋转树），取消计时
+                    container.addEventListener('touchmove', () => {
+                        clearTimeout(longPressTimer);
+                    }, { passive: true });
+
+                    // 如果手指抬起了（点击太快），取消计时
+                    container.addEventListener('touchend', () => {
+                        clearTimeout(longPressTimer);
+                    }, { passive: true });
                 }
-
-                if (clickedPhoto) {
-                    STATE.mode = 'FOCUS';
-                    STATE.focusTarget = clickedPhoto.mesh;
-                } else {
-                    if (STATE.mode === 'FOCUS') {
-                        STATE.mode = 'TREE';
-                        STATE.focusTarget = null;
-                    }
-                }
-            });
-
-            let lastTap = 0;
-            container.addEventListener('touchend', (e) => {
-                const currentTime = new Date().getTime();
-                const tapLength = currentTime - lastTap;
-                if (tapLength < 300 && tapLength > 0) {
-                    STATE.mode = (STATE.mode === 'SCATTER') ? 'TREE' : 'SCATTER';
-                    e.preventDefault();
-                }
-                lastTap = currentTime;
-            });
-        }
 
         function loadPredefinedImages() {
             const loader = new THREE.TextureLoader();
@@ -623,9 +657,17 @@
             document.getElementById('folder-input').addEventListener('change', handleImageUpload);
             const musicInput = document.getElementById('music-input');
             musicInput.addEventListener('change', handleMusicUpload);
+            
+            // --- 音乐控制修复 (核心修正点) ---
             const controlBtn = document.getElementById('music-control-btn');
             controlBtn.addEventListener('click', (e) => {
-                e.stopPropagation(); 
+                // e.stopPropagation(); // 删除了这行，让点击穿透到 window
+                
+                // 强制解锁 iOS 音频上下文
+                if (sound.context.state === 'suspended') {
+                    sound.context.resume();
+                }
+
                 if (!sound.buffer) return;
                 if (sound.isPlaying) {
                     sound.pause();
@@ -639,6 +681,7 @@
                     controlBtn.style.color = "#000";
                 }
             });
+
             const gestureBtn = document.getElementById('gesture-btn');
             if(gestureBtn) {
                 gestureBtn.addEventListener('click', (e) => {
