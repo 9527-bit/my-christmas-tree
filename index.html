@@ -6,66 +6,262 @@
     <title>Grand Luxury Tree - Christmas Edition</title>
     
     <style>
-        body { margin: 0; overflow: hidden; background-color: #050d1a; font-family: 'Times New Roman', serif; touch-action: none; user-select: none; -webkit-user-select: none; }
-        #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; z-index: 1; cursor: grab; }
+        /* --- 基础样式优化 --- */
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background: radial-gradient(circle at center, #0f2027 0%, #203a43 50%, #2c5364 100%); 
+            background-color: #050d1a; 
+            font-family: 'Times New Roman', serif; 
+            touch-action: none; 
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #canvas-container { 
+            width: 100vw; height: 100vh; 
+            position: absolute; top: 0; left: 0; z-index: 1; 
+            cursor: grab; 
+        }
         #canvas-container:active { cursor: grabbing; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; display: flex; flex-direction: column; align-items: center; padding-top: 40px; box-sizing: border-box; transition: opacity 0.5s ease; }
+        
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10; pointer-events: none;
+            display: flex; flex-direction: column; 
+            align-items: center;
+            padding-top: 5vh; /* 使用相对单位，距离顶部 5% */
+            box-sizing: border-box;
+            transition: opacity 0.5s ease;
+        }
+        
         .ui-hidden { opacity: 0 !important; pointer-events: none !important; }
-        #loader { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #050d1a; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease-out; }
-        .loader-text { color: #d4af37; font-size: 14px; letter-spacing: 4px; margin-top: 20px; text-transform: uppercase; font-weight: 100; }
-        .spinner { width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.2); border-top: 1px solid #d4af37; border-radius: 50%; animation: spin 1s linear infinite; }
+
+        /* Loading 样式 */
+        #loader {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #050d1a; z-index: 100;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s ease-out;
+        }
+        .loader-text {
+            color: #d4af37; font-size: 14px; letter-spacing: 4px; margin-top: 20px;
+            text-transform: uppercase; font-weight: 100;
+        }
+        .spinner {
+            width: 40px; height: 40px; border: 1px solid rgba(212, 175, 55, 0.2); 
+            border-top: 1px solid #d4af37; border-radius: 50%; 
+            animation: spin 1s linear infinite;
+        }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        h1 { color: #fceea7; font-size: 8vw; margin: 0; font-weight: 400; letter-spacing: 6px; text-shadow: 0 0 50px rgba(252, 238, 167, 0.6); background: linear-gradient(to bottom, #fff, #eebb66); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-family: 'Cinzel', 'Times New Roman', serif; opacity: 0.9; transition: opacity 0.5s ease; pointer-events: none; }
-        @media (min-width: 768px) { h1 { font-size: 56px; } }
-        .controls-wrapper { position: absolute; top: 30px; right: 30px; pointer-events: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 5px; z-index: 20; transition: opacity 0.5s ease; }
-        .christmas-menu-container { position: relative; display: flex; flex-direction: column; align-items: flex-end; z-index: 30; }
-        .christmas-plus-btn { width: 50px; height: 50px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff4d4d, #cc0000); border: 2px solid #d4af37; box-shadow: 0 0 15px rgba(212, 175, 55, 0.6), inset 0 0 10px rgba(0,0,0,0.3); color: #d4af37; font-size: 32px; font-family: 'Times New Roman', serif; font-weight: bold; cursor: pointer; outline: none; display: flex; align-items: center; justify-content: center; transition: all 0.4s ease; z-index: 32; padding: 0; margin-bottom: 10px; }
-        .christmas-plus-btn:hover { transform: scale(1.1); box-shadow: 0 0 25px rgba(212, 175, 55, 0.9); background: radial-gradient(circle at 30% 30%, #ff6666, #e60000); }
+
+        /* 标题样式优化：更精致的大小 */
+        h1 { 
+            color: #fceea7; 
+            font-size: clamp(32px, 9vw, 60px); /* 智能字体大小：最小32，最大60 */
+            margin: 0; font-weight: 400; 
+            letter-spacing: 4px; 
+            text-shadow: 0 0 50px rgba(252, 238, 167, 0.6); 
+            background: linear-gradient(to bottom, #fff, #eebb66);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            font-family: 'Cinzel', 'Times New Roman', serif;
+            opacity: 0.9;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* --- UI 控制区 --- */
+        .controls-wrapper {
+            position: absolute; 
+            top: 30px; right: 30px;        
+            pointer-events: auto;
+            display: flex; flex-direction: column;
+            align-items: flex-end; gap: 5px;
+            z-index: 20;
+            transition: opacity 0.5s ease;
+        }
+
+        .christmas-menu-container {
+            position: relative;
+            display: flex; flex-direction: column;
+            align-items: flex-end; z-index: 30;
+        }
+
+        .christmas-plus-btn {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff4d4d, #cc0000);
+            border: 2px solid #d4af37;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.6), inset 0 0 10px rgba(0,0,0,0.3);
+            color: #d4af37; font-size: 32px;
+            font-family: 'Times New Roman', serif; font-weight: bold;
+            cursor: pointer; outline: none;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.4s ease; z-index: 32;
+            padding: 0; margin-bottom: 10px;
+        }
+
+        .christmas-plus-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.9);
+            background: radial-gradient(circle at 30% 30%, #ff6666, #e60000);
+        }
+
         .plus-icon { display: block; transition: transform 0.4s ease; line-height: 1; }
         .christmas-plus-btn.active { background: #d4af37; color: #cc0000; border-color: #cc0000; }
         .christmas-plus-btn.active .plus-icon { transform: rotate(135deg); }
-        .menu-options-list { display: flex; flex-direction: column; gap: 8px; position: absolute; top: 60px; right: 0; opacity: 0; visibility: hidden; transform: translateY(-20px) scale(0.9); transform-origin: top right; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 31; }
+
+        .menu-options-list {
+            display: flex; flex-direction: column; gap: 8px;
+            position: absolute; top: 60px; right: 0;
+            opacity: 0; visibility: hidden;
+            transform: translateY(-20px) scale(0.9);
+            transform-origin: top right;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 31;
+        }
         .menu-options-list.open { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
-        .upload-btn { background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(212, 175, 55, 0.4); color: #d4af37; padding: 10px 20px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; font-size: 10px; transition: all 0.4s; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); min-width: 140px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .upload-btn:hover { background: #d4af37; color: #000; box-shadow: 0 0 20px rgba(212, 175, 55, 0.5); }
-        .hint-container { display: flex; flex-direction: column; align-items: flex-end; margin-top: 5px; pointer-events: none; }
-        .hint-text { color: rgba(212, 175, 55, 0.5); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; text-align: right; margin-top: 2px; }
+
+        .upload-btn {
+            background: rgba(10, 10, 10, 0.85); 
+            border: 1px solid rgba(212, 175, 55, 0.4); 
+            color: #d4af37; padding: 10px 20px; 
+            cursor: pointer; text-transform: uppercase; 
+            letter-spacing: 2px; font-size: 10px;
+            transition: all 0.4s;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px); min-width: 140px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .upload-btn:hover { 
+            background: #d4af37; color: #000; 
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.5);
+        }
+        
+        .hint-container {
+            display: flex; flex-direction: column;
+            align-items: flex-end; margin-top: 5px;
+            pointer-events: none;
+        }
+        .hint-text {
+            color: rgba(212, 175, 55, 0.5); font-size: 9px;
+            letter-spacing: 1px; text-transform: uppercase;
+            text-align: right; margin-top: 2px;
+        }
+
         input[type="file"] { display: none; }
-        #mode-bar { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 20; pointer-events: auto; }
-        .mode-btn { width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.6); border: 1px solid #d4af37; color: #d4af37; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s; backdrop-filter: blur(4px); }
+
+        #mode-bar {
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            display: flex; gap: 15px;
+            z-index: 20; pointer-events: auto;
+        }
+        .mode-btn {
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid #d4af37;
+            color: #d4af37; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.3s;
+            backdrop-filter: blur(4px);
+        }
         .mode-btn:active { transform: scale(0.9); background: #d4af37; color: #000; }
-        #webcam-wrapper { position: absolute; bottom: 100px; left: 20px; width: 120px; height: 90px; border: 1px solid rgba(212, 175, 55, 0.5); box-shadow: 0 0 20px rgba(0,0,0,0.9); border-radius: 4px; overflow: hidden; opacity: 0; pointer-events: none; z-index: 50; background: #000; transition: opacity 0.5s ease; }
+
+        #webcam-wrapper {
+            position: absolute; bottom: 100px; left: 20px;         
+            width: 120px; height: 90px;
+            border: 1px solid rgba(212, 175, 55, 0.5); 
+            box-shadow: 0 0 20px rgba(0,0,0,0.9);
+            border-radius: 4px; overflow: hidden; 
+            opacity: 0; pointer-events: none; /* 默认隐藏 */
+            z-index: 50; background: #000;
+            transition: opacity 0.5s ease; 
+        }
         #webcam { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-        #debug-info { position: absolute; bottom: 5px; left: 5px; color: rgba(212, 175, 55, 0.6); font-size: 10px; font-family: monospace; pointer-events: none; z-index: 51; width: 100%; text-align: center; }
+
+        #debug-info {
+            position: absolute; bottom: 5px; left: 5px;
+            color: rgba(212, 175, 55, 0.6); font-size: 10px;
+            font-family: monospace; pointer-events: none; z-index: 51;
+            width: 100%; text-align: center;
+        }
     </style>
-    <style>@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');</style>
-    <script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/", "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm" } }</script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap');
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+                "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/+esm"
+            }
+        }
+    </script>
 </head>
 <body>
-    <div id="loader"><div class="spinner"></div><div class="loader-text">Wrapping Gifts...</div></div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div class="loader-text">Wrapping Gifts...</div>
+    </div>
+
     <div id="canvas-container"></div>
+
     <div id="ui-layer">
         <h1>Merry Christmas</h1>
+        
         <div class="controls-wrapper">
             <div class="christmas-menu-container">
-                <button id="menu-trigger-btn" class="christmas-plus-btn"><span class="plus-icon">+</span></button>
+                <button id="menu-trigger-btn" class="christmas-plus-btn">
+                    <span class="plus-icon">+</span>
+                </button>
+        
                 <div class="menu-options-list" id="christmas-options">
-                    <label class="upload-btn option-item" id="gesture-btn">📷 Enable Gesture</label>
-                    <label class="upload-btn option-item">Select Folder<input type="file" id="folder-input" webkitdirectory directory multiple></label>
-                    <label class="upload-btn option-item">Select Files<input type="file" id="file-input" multiple accept="image/*"></label>
-                    <div class="upload-btn option-item" id="music-control-btn">▶ Play Music</div>
-                    <label class="upload-btn option-item"><span>+ Add Music</span><input type="file" id="music-input" accept="audio/*"></label>
+                    <label class="upload-btn option-item" id="gesture-btn">
+                         📷 Enable Gesture
+                    </label>
+                    <label class="upload-btn option-item">
+                        Select Folder
+                        <input type="file" id="folder-input" webkitdirectory directory multiple>
+                    </label>
+                    <label class="upload-btn option-item">
+                        Select Files
+                        <input type="file" id="file-input" multiple accept="image/*">
+                    </label>
+                    
+                    <div class="upload-btn option-item" id="music-control-btn">
+                        ▶ Play Music
+                    </div>
+                    <label class="upload-btn option-item">
+                        <span>+ Add Music</span>
+                        <input type="file" id="music-input" accept="audio/*">
+                    </label>
+
                 </div>
             </div>
-            <div class="hint-container"><div class="hint-text">Use "Select Folder" to load all photos at once</div><div class="hint-text">Drag to rotate • Click photo to view</div></div>
+            <div class="hint-container">
+                <div class="hint-text">Use "Select Folder" to load all photos at once</div>
+                <div class="hint-text">Double Tap to hide/show UI</div>
+            </div>
         </div>
+
         <div id="mode-bar">
             <div class="mode-btn" onclick="setMode('TREE')" title="Tree Mode">🎄</div>
             <div class="mode-btn" onclick="setMode('SCATTER')" title="Scatter Mode">✨</div>
             <div class="mode-btn" onclick="setMode('FOCUS_RANDOM')" title="Focus Mode">🔍</div>
         </div>
     </div>
-    <div id="webcam-wrapper"><video id="webcam" autoplay playsinline></video><div id="debug-info">Initializing...</div><canvas id="webcam-preview" style="display:none;"></canvas></div>
+
+    <div id="webcam-wrapper">
+        <video id="webcam" autoplay playsinline></video>
+        <div id="debug-info">Initializing...</div>
+        <canvas id="webcam-preview" style="display:none;"></canvas>
+    </div>
 
     <script type="module">
         import * as THREE from 'three';
@@ -76,10 +272,21 @@
         import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'; 
         import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
-        // --- 核心配置 ---
         const CONFIG = {
-            colors: { bg: 0x050d1a, fog: 0x050d1a, champagneGold: 0xffd966, deepGreen: 0x03180a, accentRed: 0x990000 },
-            particles: { count: 1500, dustCount: 2000, snowCount: 1000, treeHeight: 24, treeRadius: 8 },
+            colors: {
+                bg: 0x050d1a, 
+                fog: 0x050d1a,
+                champagneGold: 0xffd966, 
+                deepGreen: 0x03180a,     
+                accentRed: 0x990000,     
+            },
+            particles: {
+                count: 1500,     
+                dustCount: 2000, 
+                snowCount: 1000,
+                treeHeight: 24,  
+                treeRadius: 8    
+            },
             camera: { z: 50 },
             preload: {
                 autoScanLocal: true,
@@ -87,14 +294,35 @@
                 images: [
                     'https://pub-24ef13ed93074c12ad8be2d30d7e41b2.r2.dev/18d67b6503c84cc72a4568b1cf8b0ad.jpg',
                     'https://pub-24ef13ed93074c12ad8be2d30d7e41b2.r2.dev/mmexport1755001138432.jpg'
-                ]
+            ]
             }
         };
 
-        const STATE = { mode: 'TREE', focusIndex: -1, focusTarget: null, hand: { detected: false, x: 0, y: 0 }, rotation: { x: 0, y: 0 }, touch: { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 } };
-        let scene, camera, renderer, composer, bloomPass, mainGroup, clock = new THREE.Clock(), particleSystem = [], photoMeshGroup = new THREE.Group(), handLandmarker, video, caneTexture, snowSystem;
+        const STATE = {
+            mode: 'TREE', 
+            focusIndex: -1, 
+            focusTarget: null,
+            hand: { detected: false, x: 0, y: 0 },
+            rotation: { x: 0, y: 0 },
+            touch: { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 }
+        };
+
+        let scene, camera, renderer, composer;
+        let bloomPass; 
+        let mainGroup; 
+        let clock = new THREE.Clock();
+        let particleSystem = []; 
+        let photoMeshGroup = new THREE.Group();
+        let handLandmarker, video;
+        let caneTexture; 
+        let snowSystem; 
         const debugInfo = document.getElementById('debug-info');
-        let raycaster = new THREE.Raycaster(), mouse = new THREE.Vector2(), sound, analyser, audioLoader, smoothedMusicScale = 0; 
+        
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        
+        let sound, analyser, audioLoader;
+        let smoothedMusicScale = 0; 
 
         window.setMode = (mode) => {
             if (mode === 'FOCUS_RANDOM') {
@@ -107,7 +335,6 @@
             }
         };
         
-        // --- 摄像头控制逻辑 (完美修复版) ---
         let isCameraRunning = false;
 
         async function toggleCamera() {
@@ -145,6 +372,7 @@
             debugInfo.innerText = "Loading AI models...";
             video = document.getElementById('webcam');
             const constraints = { video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30 } } };
+            
             try {
                 if (!handLandmarker) {
                     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
@@ -156,8 +384,10 @@
                         runningMode: "VIDEO", numHands: 1
                     });
                 }
+                
                 const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 video.srcObject = stream;
+                
                 video.onloadeddata = () => {
                     const wrapper = document.getElementById('webcam-wrapper');
                     wrapper.style.display = 'block';
@@ -167,6 +397,7 @@
                     isCameraRunning = true;
                     predictWebcam(); 
                 };
+                
             } catch(e) {
                 debugInfo.innerText = "Camera error: " + e.message;
                 document.getElementById('webcam-wrapper').style.display = 'none';
@@ -205,6 +436,7 @@
                 const wrist = lm[0]; const middleMCP = lm[9];
                 const handSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
                 if (handSize < 0.02) return;
+
                 const tips = [lm[8], lm[12], lm[16], lm[20]];
                 let avgTipDist = 0;
                 tips.forEach(t => avgTipDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
@@ -212,7 +444,9 @@
                 const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
                 const extensionRatio = avgTipDist / handSize;
                 const pinchRatio = pinchDist / handSize;
+
                 debugInfo.innerText = `Size: ${handSize.toFixed(2)} | Ext: ${extensionRatio.toFixed(2)} | Pinch: ${pinchRatio.toFixed(2)} | Mode: ${STATE.mode}`;
+
                 if (extensionRatio < 1.5) { STATE.mode = 'TREE'; STATE.focusTarget = null; } 
                 else if (pinchRatio < 0.35) {
                     if (STATE.mode !== 'FOCUS') {
@@ -248,30 +482,38 @@
             const playDefaultMusic = () => {
                 if (sound.context.state === 'suspended') sound.context.resume();
                 if (sound.isPlaying || audioLoader.loading) return;
+
                 const controlBtn = document.getElementById('music-control-btn');
                 audioLoader.loading = true; 
                 if(controlBtn) controlBtn.innerText = "Loading...";
+
                 audioLoader.load(defaultMusicPath, function(buffer) {
                     sound.setBuffer(buffer);
                     sound.setLoop(true);
                     sound.setVolume(0.5);
                     sound.play();
                     audioLoader.loading = false;
+                    
                     if(controlBtn) {
                         controlBtn.innerText = "⏸ Pause Music";
                         controlBtn.style.background = "#d4af37"; 
                         controlBtn.style.color = "#000";
                     }
-                }, undefined, function(err) {
+                }, 
+                undefined, 
+                function(err) {
                     audioLoader.loading = false;
                     console.log("No default BGM found.");
                     if(controlBtn) controlBtn.innerText = "▶ Play Music";
                 });
+
                 window.removeEventListener('click', playDefaultMusic);
                 window.removeEventListener('touchstart', playDefaultMusic);
             };
+
             window.addEventListener('click', playDefaultMusic);
             window.addEventListener('touchstart', playDefaultMusic);
+
             animate();
         }
 
@@ -329,7 +571,7 @@
                 }
             });
 
-            // 3. 【新功能】双击隐藏/显示 UI
+            // 3. 【新功能】双击隐藏/显示 UI (替代原来的双击模式切换)
             let lastTap = 0;
             container.addEventListener('touchend', (e) => {
                 const currentTime = new Date().getTime();
@@ -386,13 +628,20 @@
             }
         }
 
+        // --- 核心修改：视觉优化 (智能构图) ---
         function initThree() {
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
+            
             scene.background = new THREE.Color(CONFIG.colors.bg);
             scene.fog = new THREE.FogExp2(CONFIG.colors.fog, 0.015);
+
             camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 2, CONFIG.camera.z); 
+            
+            // 智能适配：如果是竖屏(手机)，把相机拉远(Z=70)，否则默认(Z=50)
+            const isPortrait = window.innerHeight > window.innerWidth;
+            camera.position.set(0, 2, isPortrait ? 70 : 50);
+
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -400,11 +649,17 @@
             renderer.toneMappingExposure = 2.2; 
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
             container.appendChild(renderer.domElement);
+
             mainGroup = new THREE.Group();
+            // 视觉优化：整体下移，避开标题
+            mainGroup.position.y = -3;
             scene.add(mainGroup);
+
             const listener = new THREE.AudioListener();
             camera.add(listener);
+
             sound = new THREE.Audio(listener);
             audioLoader = new THREE.AudioLoader();
             analyser = new THREE.AudioAnalyser(sound, 32);
