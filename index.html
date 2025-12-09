@@ -2,7 +2,7 @@
   - @Project: Grand Luxury Tree - Christmas Edition (Touch & Gesture & Stats)
   - @Author: wp/electronicminer
   - @Secondary Creation 9527-bit
-  - @Date: 2025-12-08
+  - @Date: 2025-12-09
 --> 
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -254,6 +254,13 @@
                 <div class="hint-text">Use "Select Folder" to load all photos at once</div>
                 <div class="hint-text">"H" to hide/show UI in Wins/Mac</div>
                 <div class="hint-text">Double Tap to hide/show UI in mobile side</div>
+
+                <div style="width: 60%; height: 1px; background: rgba(212,175,55,0.3); margin: 6px 0 4px auto;"></div>
+                
+                <div class="hint-text" style="color: #fff; opacity: 0.8;">--- Gesture Guide ---</div>
+                <div class="hint-text">👌 Pinch · Focus Photo</div>
+                <div class="hint-text">🖐 5 Fingers · Scatter</div>
+                <div class="hint-text">☝️ ✌️ 3️⃣ · Shape 1 / 2 / 3</div>
             </div>
         </div>
 
@@ -299,7 +306,7 @@
                 autoScanLocal: true,
                 scanCount: 0, 
                 images: [
-                    'https://pub-24ef13ed93074c12ad8be2d30d7e41b2.r2.dev/E6BD8FE2-BBA4-4D8C-A78B-876437962930_1_105_c.jpeg',
+                    'https://pub-24ef13ed93074c12ad8be2d30d7e41b2.r2.dev/18d67b6503c84cc72a4568b1cf8b0ad.jpg',
                     'https://pub-24ef13ed93074c12ad8be2d30d7e41b2.r2.dev/mmexport1755001138432.jpg'
             ]
             }
@@ -434,38 +441,152 @@
             }
         }
 
+        // 判断手指状态辅助函数
+        function getFingerStatus(landmarks) {
+            const wrist = landmarks[0];
+            const distSq = (p1, p2) => (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
+            // 拇指判定稍微宽松一点 (*1.1)
+            const fingers = [
+                distSq(wrist, landmarks[4]) > distSq(wrist, landmarks[2]) * 1.1,
+                distSq(wrist, landmarks[8]) > distSq(wrist, landmarks[5]),
+                distSq(wrist, landmarks[12]) > distSq(wrist, landmarks[9]),
+                distSq(wrist, landmarks[16]) > distSq(wrist, landmarks[13]),
+                distSq(wrist, landmarks[20]) > distSq(wrist, landmarks[17])
+            ];
+            return fingers.filter(f => f).length;
+        }
+
         function processGestures(result) {
             if (result.landmarks && result.landmarks.length > 0) {
                 STATE.hand.detected = true;
                 const lm = result.landmarks[0];
+                
+                // 手部映射旋转 (保留)
                 STATE.hand.x = (lm[9].x - 0.5) * 2; 
                 STATE.hand.y = (lm[9].y - 0.5) * 2;
+
                 const wrist = lm[0]; const middleMCP = lm[9];
                 const handSize = Math.hypot(middleMCP.x - wrist.x, middleMCP.y - wrist.y);
                 if (handSize < 0.02) return;
 
-                const tips = [lm[8], lm[12], lm[16], lm[20]];
-                let avgTipDist = 0;
-                tips.forEach(t => avgTipDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
-                avgTipDist /= 4;
+                // --- 修复开始：获取手指状态 ---
+                const wristSq = (p1, p2) => (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
+                const fingers = [
+                    wristSq(wrist, lm[4]) > wristSq(wrist, lm[2]) * 1.1, // 拇指 [0]
+                    wristSq(wrist, lm[8]) > wristSq(wrist, lm[5]),       // 食指 [1]
+                    wristSq(wrist, lm[12]) > wristSq(wrist, lm[9]),      // 中指 [2]
+                    wristSq(wrist, lm[16]) > wristSq(wrist, lm[13]),     // 无名指 [3]
+                    wristSq(wrist, lm[20]) > wristSq(wrist, lm[17])      // 小指 [4]
+                ];
+
+                // 总手指数量 (用于 Scatter 和 Debug)
+                const totalCount = fingers.filter(f => f).length;
+
+                // 【关键修复】：计算不包含拇指的数量，专门用于判断数字 1, 2, 3
+                // fingers.slice(1) 意味着把第0个(拇指)切掉，只看后面4根
+                const countNoThumb = fingers.slice(1).filter(f => f).length;
+                // --- 修复结束 ---
+
                 const pinchDist = Math.hypot(lm[4].x - lm[8].x, lm[4].y - lm[8].y);
-                const extensionRatio = avgTipDist / handSize;
                 const pinchRatio = pinchDist / handSize;
+                const tips = [lm[8], lm[12], lm[16], lm[20]];
+                let avgTipDist = 0; tips.forEach(t => avgTipDist += Math.hypot(t.x - wrist.x, t.y - wrist.y));
+                const extensionRatio = (avgTipDist / 4) / handSize;
 
-                debugInfo.innerText = `Size: ${handSize.toFixed(2)} | Ext: ${extensionRatio.toFixed(2)} | Pinch: ${pinchRatio.toFixed(2)} | Mode: ${STATE.mode}`;
+                let detectedAction = "";
 
-                if (extensionRatio < 1.5) { STATE.mode = 'TREE'; STATE.focusTarget = null; } 
-                else if (pinchRatio < 0.35) {
+                // --- 优先级逻辑 ---
+                
+                // 1. 捏合 (Pinch)
+                if (pinchRatio < 0.35 && countNoThumb > 0) {
+                    detectedAction = "👌 Pinch (Photo)";
                     if (STATE.mode !== 'FOCUS') {
                         STATE.mode = 'FOCUS';
                         const photos = particleSystem.filter(p => p.type === 'PHOTO');
                         if (photos.length) STATE.focusTarget = photos[Math.floor(Math.random()*photos.length)].mesh;
                     }
-                } else if (extensionRatio > 1.7) { STATE.mode = 'SCATTER'; STATE.focusTarget = null; }
+                } 
+                // 2. 五指张开 (Scatter) - 这里用 totalCount，因为张开通常包括拇指
+                else if (totalCount === 5 && extensionRatio > 1.5) {
+                    detectedAction = "✨ Scatter";
+                    STATE.mode = 'SCATTER';
+                }
+                // 3. 数字手势 - 【改用 countNoThumb 判断】
+                else if (countNoThumb === 3) {
+                    // 食指+中指+无名指 (拇指无所谓)
+                    detectedAction = "3️⃣ Shape 3";
+                    STATE.mode = 'NUM_3';
+                }
+                else if (countNoThumb === 2) {
+                    // 食指+中指 (剪刀手)
+                    detectedAction = "2️⃣ Shape 2";
+                    STATE.mode = 'NUM_2';
+                }
+                else if (countNoThumb === 1) {
+                    // 只有一根手指 (通常是食指)
+                    detectedAction = "1️⃣ Shape 1";
+                    STATE.mode = 'NUM_1';
+                }
+                // 4. 默认
+                else {
+                    detectedAction = "🌲 Tree";
+                    STATE.mode = 'TREE';
+                    STATE.focusTarget = null;
+                }
+
+                debugInfo.innerText = `Count(NoThumb): ${countNoThumb} | Action: ${detectedAction}`;
+
             } else {
-                STATE.hand.detected = false; debugInfo.innerText = "No hand detected";
+                STATE.hand.detected = false; 
+                debugInfo.innerText = "No hand detected";
             }
         }
+
+
+        // --- 新增工具：从文字生成粒子目标位置 ---
+        function generateTextPositions(text, count, spread = 15) {
+            // 1. 创建一个离屏 Canvas
+            const canvas = document.createElement('canvas');
+            const size = 100; // 画布越小，采样越快，形状越粗犷
+            canvas.width = size; canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // 2. 画文字
+            ctx.font = 'bold 80px Arial'; // 字体粗细和大小
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, size/2, size/2);
+            
+            // 3. 扫描像素
+            const imageData = ctx.getImageData(0, 0, size, size);
+            const data = imageData.data;
+            const validPositions = [];
+            
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const alpha = data[(y * size + x) * 4 + 3]; // 获取 Alpha 通道
+                    if (alpha > 128) { // 如果像素可见
+                        // 将 0-100 的画布坐标映射到 3D 场景坐标 (比如 -15 到 15)
+                        validPositions.push({
+                            x: (x / size - 0.5) * spread * 1.5, // 宽一点
+                            y: -(y / size - 0.5) * spread * 1.5 // 倒转 Y 轴
+                        });
+                    }
+                }
+            }
+
+            // 安全补丁：防止空数据报错
+            if (validPositions.length === 0) validPositions.push({x: 0, y: 0});
+
+            const result = [];
+            for (let i = 0; i < count; i++) {
+                const p = validPositions[i % validPositions.length];
+                result.push(new THREE.Vector3(p.x, p.y, (Math.random()-0.5) * 2));
+            }
+            return result;
+        }
+        
 
         async function init() {
             initThree();
@@ -784,6 +905,17 @@
             const starMat = new THREE.MeshStandardMaterial({ color: 0xffdd88, emissive: 0xffaa00, emissiveIntensity: 1.0, metalness: 1.0, roughness: 0 });
             const star = new THREE.Mesh(starGeo, starMat); star.position.set(0, CONFIG.particles.treeHeight/2 + 1.2, 0); star.scale.set(0.6, 0.6, 0.6); mainGroup.add(star);
             mainGroup.add(photoMeshGroup);
+            // --- 新增：计算 1, 2, 3 的形状坐标 ---
+            const pos1 = generateTextPositions("1", particleSystem.length);
+            const pos2 = generateTextPositions("2", particleSystem.length);
+            const pos3 = generateTextPositions("3", particleSystem.length);
+
+            // 把算好的坐标塞给每个粒子
+            particleSystem.forEach((p, i) => {
+                p.posNum1 = pos1[i];
+                p.posNum2 = pos2[i];
+                p.posNum3 = pos3[i];
+            });
         }
 
         function createDust() {
@@ -963,8 +1095,16 @@
                 this.mesh = mesh;
                 this.type = type;
                 this.isDust = isDust;
+                
                 this.posTree = new THREE.Vector3();
                 this.posScatter = new THREE.Vector3();
+                
+                // --- 新增：数字的目标位置 ---
+                // 这里只是初始化，具体计算放在 init 里的 createParticles 后
+                this.posNum1 = new THREE.Vector3();
+                this.posNum2 = new THREE.Vector3();
+                this.posNum3 = new THREE.Vector3();
+                
                 this.baseScale = mesh.scale.x; 
                 const speedMult = (type === 'PHOTO') ? 0.3 : 2.0;
                 this.spinSpeed = new THREE.Vector3((Math.random() - 0.5) * speedMult, (Math.random() - 0.5) * speedMult, (Math.random() - 0.5) * speedMult);
@@ -996,17 +1136,27 @@
             }
 
             update(dt, mode, focusTargetMesh, musicScale = 0) {
-                let target = (mode === 'SCATTER') ? this.posScatter : this.posTree;
-                if (mode === 'FOCUS') {
+                let target;
+
+                // --- 修改：根据模式选择目标 ---
+                if (mode === 'SCATTER') target = this.posScatter;
+                else if (mode === 'NUM_1') target = this.posNum1; // 变成 1
+                else if (mode === 'NUM_2') target = this.posNum2; // 变成 2
+                else if (mode === 'NUM_3') target = this.posNum3; // 变成 3
+                else if (mode === 'FOCUS') {
                     if (this.mesh === focusTargetMesh) {
                         const desiredWorldPos = new THREE.Vector3(0, 2, 35);
                         const invMatrix = new THREE.Matrix4().copy(mainGroup.matrixWorld).invert();
                         target = desiredWorldPos.applyMatrix4(invMatrix);
                     } else { target = this.posScatter; }
+                }else { target = this.posTree; 
                 }
                 const lerpSpeed = (mode === 'FOCUS' && this.mesh === focusTargetMesh) ? 5.0 : 2.0; 
                 this.mesh.position.lerp(target, lerpSpeed * dt);
-                if (mode === 'SCATTER') {
+                if (mode.startsWith('NUM_')) {
+                        // 数字模式下，让粒子朝向相机，这样看得更清楚
+                        this.mesh.lookAt(0, 0, 100); 
+                } else if (mode === 'SCATTER') {
                     this.mesh.rotation.x += this.spinSpeed.x * dt;
                     this.mesh.rotation.y += this.spinSpeed.y * dt;
                     this.mesh.rotation.z += this.spinSpeed.z * dt; 
@@ -1022,6 +1172,8 @@
                 }
                 if (mode === 'FOCUS' && this.mesh === focusTargetMesh) { this.mesh.lookAt(camera.position); }
                 let s = this.baseScale;
+                // 数字模式下，稍微放大一点粒子，让数字看起来更实
+                if (mode.startsWith('NUM_')) s = this.baseScale * 1.5;
                 if (this.isDust) {
                     s = this.baseScale * (0.8 + 0.4 * Math.sin(clock.elapsedTime * 4 + this.mesh.id));
                     if (musicScale > 0.05) s *= (1 + musicScale * 0.4); 
